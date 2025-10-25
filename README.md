@@ -1,4 +1,5 @@
 # HPBench
+# HPL Parameter Sweep Web Application - README Plan
 **HPL-Sweep: Automated HPL Parameter Optimization Tool**
 *A Python-based web application for automated HPL benchmark parameter sweeping and performance analysis on HPC clusters*
 
@@ -20,60 +21,86 @@
 
 ## 1. Overview
 ### Description
-Brief description of what the application does - automated HPL parameter sweeping through SLURM, result collection, analysis, and visualization through a local web interface.
+A fully local Python web application that manages HPL benchmark parameter sweeping on remote HPC clusters. The application runs entirely on your local machine, maintains persistent state across sessions, and allows you to submit jobs to remote clusters via SSH, leave while they run, and return later to analyze results.
 
 ### Key Benefits
-- Automated parameter optimization for HPL benchmarks
-- SSH-based remote cluster interaction
-- Real-time job monitoring
-- Performance visualization and analysis
-- PDF report generation
+- **100% Local**: No server deployment needed - runs entirely on your machine
+- **Persistent State**: Close the app anytime and resume where you left off
+- **Remote Execution**: Jobs run on HPC cluster while app can be closed
+- **Automated parameter optimization for HPL benchmarks**
+- **SSH-based remote cluster interaction**
+- **Asynchronous job monitoring with state preservation**
+- **Local performance visualization and analysis**
+- **PDF report generation with optimal parameters**
 
 ## 2. Features
 ### Core Features
-- **SSH Authentication**: Secure login to HPC clusters
+- **100% Local Execution**: Entire application runs on your local machine
+- **State Persistence**: All job states, results, and configurations saved locally
+- **Session Resumption**: Exit and return anytime - jobs continue running on cluster
+- **SSH Authentication**: Secure connection to remote HPC clusters
 - **SLURM Integration**: Automated job submission and monitoring
 - **Parameter Sweep Engine**: Intelligent parameter space exploration
-- **Result Collection**: Automated result gathering and parsing
-- **Data Analysis**: Performance metrics calculation and optimization
-- **Visualization**: Interactive graphs and charts
+- **Result Collection**: Automated result gathering and parsing from remote cluster
+- **Local Data Analysis**: Performance metrics calculation and optimization
+- **Offline Visualization**: Interactive graphs generated locally
 - **Report Generation**: PDF export with best parameters and graphs
 
 ### Workflow Features
 - Module loading configuration
 - Environment variable management
-- Custom result directory selection
-- CSV data export
-- Real-time job status tracking
+- Custom result directory selection (on remote cluster)
+- Local CSV data storage
+- Asynchronous job status tracking
 - Batch job management
+- **Persistent job tracking across sessions**
+- **Automatic result synchronization**
 
 ## 3. Architecture
 ### System Architecture
 ```
-┌─────────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Web Frontend  │────▶│  Python      │────▶│  HPC        │
-│   (HTML/JS)     │◀────│  Backend     │◀────│  Cluster    │
-└─────────────────┘     │  (FastAPI)   │     │  (SLURM)    │
-                        └──────────────┘     └─────────────┘
-                               │
-                        ┌──────▼──────┐
-                        │  Database/  │
-                        │  Storage     │
-                        └─────────────┘
+        LOCAL MACHINE                           REMOTE HPC CLUSTER
+┌──────────────────────────────┐              ┌─────────────────┐
+│                              │              │                 │
+│  ┌────────────────────┐      │     SSH      │   ┌─────────┐   │
+│  │   Web Browser      │      │◀────────────▶│   │  SLURM  │   │
+│  │  (localhost:8000)  │      │              │   │  Jobs   │   │
+│  └──────────┬─────────┘      │              │   └─────────┘   │
+│             │                │              │                 │
+│  ┌──────────▼─────────┐      │              │   ┌─────────┐   │
+│  │   Python Backend   │      │   Paramiko   │   │   HPL   │   │
+│  │    (FastAPI)       │──────┼─────────────▶│   │  Runs   │   │
+│  └──────────┬─────────┘      │              │   └─────────┘   │
+│             │                │              │                 │
+│  ┌──────────▼─────────┐      │              │   ┌─────────┐   │
+│  │  Local SQLite DB   │      │    Results   │   │ Results │   │
+│  │  (State Storage)   │◀─────┼──────────────│   │  Files  │   │
+│  └────────────────────┘      │              │   └─────────┘   │
+│                              │              │                 │
+│  📁 Local Files:             │              └─────────────────┘
+│   • Job states               │
+│   • Cached results           │
+│   • Generated graphs         │
+│   • Configuration            │
+└──────────────────────────────┘
 ```
 
 ### Technology Stack
-- **Backend**: Python 3.8+
-  - FastAPI/Flask for API
-  - Paramiko for SSH connections
+- **Backend**: Python 3.8+ (All running locally)
+  - FastAPI for local web server
+  - Paramiko for SSH connections to remote cluster
   - Pandas for data processing
   - Matplotlib/Plotly for visualization
   - ReportLab for PDF generation
 - **Frontend**: 
-  - HTML5/CSS3
-  - JavaScript (Vanilla or React/Vue optional)
+  - HTML5/CSS3 (served locally)
+  - JavaScript (Vanilla or lightweight framework)
   - Bootstrap or Tailwind CSS
-- **Storage**: SQLite/JSON for local data
+- **Storage**: SQLite for persistent local state storage
+  - Job history and status
+  - SSH session information
+  - Cached results
+  - User preferences
 
 ## 4. Prerequisites
 ### System Requirements
@@ -104,28 +131,47 @@ aiofiles>=23.0.0
 - Module system (Lmod/Environment Modules)
 
 ## 5. Installation
-### Quick Start
+### Quick Start (Local Installation)
 ```bash
-# Clone the repository
+# Clone the repository to your local machine
 git clone https://github.com/username/hpl-sweep.git
 cd hpl-sweep
 
-# Create virtual environment
+# Create virtual environment (keeps everything local)
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
+# Install dependencies locally
 pip install -r requirements.txt
 
-# Run the application
+# Initialize local database
+python scripts/init_db.py
+
+# Run the application locally
 python app.py
+
+# Open browser to http://localhost:8000
+# Application is now running entirely on your machine
 ```
 
-### Docker Installation (Optional)
+### First Time Setup
 ```bash
-docker build -t hpl-sweep .
-docker run -p 8000:8000 hpl-sweep
+# Create necessary local directories
+mkdir -p data/{sessions,cached_results,generated_graphs,exports,backups}
+
+# Set up configuration
+cp config/app_config.yaml.example config/app_config.yaml
+# Edit config/app_config.yaml with your preferences
+
+# Test local server
+python app.py --test
 ```
+
+### No External Dependencies
+- No cloud services required
+- No external database needed
+- No deployment necessary
+- Everything runs on localhost
 
 ## 6. Configuration
 ### Configuration Files
@@ -139,6 +185,7 @@ HPL_SWEEP_PORT=8000
 HPL_SWEEP_HOST=localhost
 HPL_SWEEP_DEBUG=False
 HPL_SWEEP_SECRET_KEY=your-secret-key
+HPL_SWEEP_DB_PATH=./data/hpl_sweep.db
 ```
 
 ### HPL Parameter Configuration
@@ -149,81 +196,138 @@ Description of configurable HPL parameters:
 - Memory usage limits
 - Algorithm variants
 
+### State Persistence Configuration
+The application maintains state in a local SQLite database:
+```yaml
+# config/persistence.yaml
+database:
+  path: ./data/hpl_sweep.db
+  backup_interval: 300  # seconds
+  
+cache:
+  results_dir: ./data/cached_results/
+  graphs_dir: ./data/generated_graphs/
+  max_age_days: 30
+  
+session:
+  auto_restore: true
+  save_credentials: false  # for security
+  ssh_timeout: 30
+```
+
 ## 7. Usage
 ### Starting the Application
 ```bash
-# Development mode
+# Start local server (development mode)
 python app.py --debug
 
-# Production mode
-python app.py --host 0.0.0.0 --port 8000
+# Start local server (normal mode)
+python app.py
+
+# The app automatically runs at http://localhost:8000
+# All data is stored locally in ./data/ directory
 ```
 
 ### User Workflow
-1. **Launch Application**
-   - Navigate to `http://localhost:8000`
+1. **Launch Application Locally**
+   - Run `python app.py`
+   - Open browser to `http://localhost:8000`
+   - All previous sessions automatically restored
    
 2. **SSH Login**
    - Enter cluster hostname
    - Provide username and password/key
-   - Verify connection
+   - Connection info saved locally for session resumption
 
 3. **Configure HPL Environment**
    - Select/add required modules
    - Set environment variables
    - Specify XHPL binary path
+   - **Configuration saved to local database**
 
 4. **Set Job Parameters**
    - Number of nodes
    - CPUs per node
    - SLURM partition
    - Time limit
-   - Result directory (optional)
+   - Result directory on cluster (optional)
+   - **All parameters stored locally**
 
 5. **Launch Parameter Sweep**
    - Review parameter space
-   - Submit jobs
-   - Monitor progress
+   - Submit jobs to remote cluster
+   - Job IDs saved to local database
+   - **Can safely close application - jobs continue on cluster**
 
-6. **Analyze Results**
-   - Wait for job completion
-   - Click "Generate Graphs"
+6. **Monitor Progress (Can Resume Later)**
+   - Check job status anytime by reopening app
+   - Application queries cluster for job updates
+   - Progress automatically saved locally
+   - **Exit and return days later if needed**
+
+7. **Analyze Results (After Jobs Complete)**
+   - Reopen application at any time
+   - Click "Sync Results" to pull from cluster
+   - Click "Generate Graphs" - processed locally
    - View performance metrics
    - Identify optimal parameters
+   - **All results cached locally**
 
-7. **Export Results**
-   - Generate PDF report
-   - Download CSV data
-   - Save graphs
+8. **Export Results**
+   - Generate PDF report locally
+   - Export CSV data from local storage
+   - Save graphs as image files
+
+### Session Persistence Features
+- **Automatic State Recovery**: Reopening the app restores all previous job information
+- **Job Status Synchronization**: Checks remote cluster for updates on reopening
+- **Result Caching**: Downloaded results stored locally, no need to re-fetch
+- **Configuration Memory**: All settings preserved between sessions
+- **Multi-Session Support**: Track multiple parameter sweep sessions simultaneously
 
 ### Web Interface Screenshots
-[Placeholder for UI screenshots]
+[Placeholder for UI screenshots showing session resumption]
 
 ## 8. API Documentation
-### API Endpoints
-- `POST /api/auth/login` - SSH authentication
-- `POST /api/jobs/submit` - Submit parameter sweep
-- `GET /api/jobs/status/{job_id}` - Check job status
-- `GET /api/results/{job_id}` - Retrieve results
-- `POST /api/analysis/graphs` - Generate visualizations
-- `GET /api/export/pdf` - Generate PDF report
+### Local API Endpoints (All served from localhost:8000)
+- `POST /api/auth/login` - SSH authentication to remote cluster
+- `POST /api/auth/logout` - Clear SSH session (local)
+- `GET /api/session/restore` - Restore previous session state
+- `POST /api/jobs/submit` - Submit parameter sweep to cluster
+- `GET /api/jobs/status/{job_id}` - Check job status on cluster
+- `GET /api/jobs/sync` - Sync all job statuses from cluster
+- `GET /api/results/{job_id}` - Retrieve results (from cache or cluster)
+- `POST /api/results/sync-all` - Pull all completed results from cluster
+- `POST /api/analysis/graphs` - Generate visualizations locally
+- `GET /api/export/pdf` - Generate PDF report locally
+- `GET /api/state/save` - Manual state save
+- `GET /api/state/sessions` - List all saved sessions
 
-### WebSocket Endpoints
-- `/ws/job-status` - Real-time job status updates
+### WebSocket Endpoints (Local)
+- `/ws/job-status` - Real-time job status updates when app is open
+
+### State Management
+All API calls automatically persist state to local SQLite database:
+- Job submissions and IDs
+- SSH connection parameters (encrypted)
+- HPL configurations
+- Result cache references
+- Graph generation history
 
 ## 9. Project Structure
 ```
 hpl-sweep/
-├── app.py                 # Main application entry point
+├── app.py                 # Main application entry point (local server)
 ├── requirements.txt       # Python dependencies
 ├── README.md             # This file
 ├── config/               # Configuration files
 │   ├── app_config.yaml
 │   ├── hpl_params.yaml
+│   ├── persistence.yaml  # State persistence settings
 │   └── slurm_templates/
-├── backend/              # Python backend code
+├── backend/              # Python backend code (runs locally)
 │   ├── __init__.py
-│   ├── api/             # API routes
+│   ├── api/             # Local API routes
 │   │   ├── auth.py
 │   │   ├── jobs.py
 │   │   └── analysis.py
@@ -231,26 +335,32 @@ hpl-sweep/
 │   │   ├── ssh_manager.py
 │   │   ├── slurm_interface.py
 │   │   ├── hpl_parser.py
+│   │   ├── state_manager.py      # Session persistence
 │   │   └── parameter_generator.py
 │   ├── models/          # Data models
 │   │   ├── job.py
+│   │   ├── session.py   # Session state model
 │   │   └── result.py
 │   ├── services/        # Business logic
 │   │   ├── sweep_service.py
 │   │   ├── analysis_service.py
+│   │   ├── sync_service.py       # Result synchronization
 │   │   └── export_service.py
 │   └── utils/           # Utility functions
 │       ├── validators.py
 │       └── helpers.py
-├── frontend/            # Web frontend
+├── frontend/            # Web frontend (served locally)
 │   ├── index.html
 │   ├── css/
 │   ├── js/
 │   └── assets/
-├── data/                # Local data storage
-│   ├── jobs/
-│   ├── results/
-│   └── exports/
+├── data/                # LOCAL PERSISTENT STORAGE
+│   ├── hpl_sweep.db    # SQLite database (job states, configs)
+│   ├── sessions/        # Active session data
+│   ├── cached_results/  # Downloaded HPL results
+│   ├── generated_graphs/# Locally generated visualizations
+│   ├── exports/         # PDF reports and CSV exports
+│   └── backups/         # Database backups
 ├── tests/               # Test suite
 │   ├── unit/
 │   ├── integration/
@@ -305,7 +415,56 @@ pytest --cov=backend tests/
 - API endpoint tests
 - Frontend UI tests (optional)
 
-## 12. Troubleshooting
+## 12. Local Execution & State Persistence Details
+### How State Persistence Works
+1. **SQLite Database**: All job information stored in `./data/hpl_sweep.db`
+   - Job IDs and parameters
+   - Submission timestamps
+   - Last known status
+   - Result file locations
+
+2. **Session Management**:
+   - Each parameter sweep creates a session ID
+   - Sessions can be resumed even after system restart
+   - Multiple concurrent sessions supported
+
+3. **Result Caching**:
+   - Results downloaded once and stored locally
+   - Subsequent views use cached data
+   - Cache invalidation configurable
+
+4. **Automatic Recovery**:
+   ```python
+   # On application start:
+   1. Load all active sessions from database
+   2. Check remote cluster for job updates
+   3. Sync any completed results
+   4. Restore UI to last state
+   ```
+
+### Data Flow
+```
+1. Submit Jobs (Local → Remote):
+   Local App → SSH → SLURM → Job Queue
+
+2. Monitor Status (Periodic or On-Demand):
+   Local App → SSH → squeue/sacct → Update Local DB
+
+3. Retrieve Results (Remote → Local):
+   Remote Results → SSH/SCP → Local Cache → Analysis
+
+4. Generate Visualizations (All Local):
+   Local Cache → Pandas → Matplotlib → Browser
+```
+
+### Benefits of Local Architecture
+- **Privacy**: All data stays on your machine
+- **Performance**: No network latency for analysis
+- **Reliability**: No dependency on external services
+- **Flexibility**: Run multiple instances for different clusters
+- **Cost**: Zero hosting or cloud costs
+
+## 13. Troubleshooting
 ### Common Issues
 1. **SSH Connection Failures**
    - Verify credentials
@@ -327,6 +486,11 @@ pytest --cov=backend tests/
    - Check file permissions
    - Ensure complete job execution
 
+5. **Local State Issues**
+   - Check database integrity: `python scripts/check_db.py`
+   - Clear cache if corrupted: `rm -rf data/cached_results/*`
+   - Restore from backup: `cp data/backups/latest.db data/hpl_sweep.db`
+
 ### Debug Mode
 ```bash
 # Enable verbose logging
@@ -337,8 +501,9 @@ python app.py --debug --log-level DEBUG
 - `logs/app.log` - Application logs
 - `logs/ssh.log` - SSH connection logs
 - `logs/slurm.log` - SLURM interaction logs
+- `logs/state.log` - State persistence logs
 
-## 13. Contributing
+## 14. Contributing
 ### Development Workflow
 1. Fork the repository
 2. Create feature branch
