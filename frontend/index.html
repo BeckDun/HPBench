@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HPL-Sweep | HPL Parameter Sweep Tool</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>HPL-Sweep</h1>
+            <p>HPL Parameter Sweep Application</p>
+        </header>
+
+        <main>
+            <!-- SSH Connection Section -->
+            <section class="card" id="ssh-section">
+                <h2>1. SSH Connection</h2>
+                <div class="form-group">
+                    <label for="hostname">Cluster Hostname:</label>
+                    <input type="text" id="hostname" placeholder="example.hpc.edu">
+                </div>
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" placeholder="your_username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" placeholder="your_password">
+                </div>
+                <button onclick="connectSSH()">Connect</button>
+                <div id="ssh-status" class="status-message"></div>
+            </section>
+
+            <!-- Job Configuration Section -->
+            <section class="card" id="job-section" style="display: none;">
+                <h2>2. Job Configuration</h2>
+                <div class="form-group">
+                    <label for="nodes">Number of Nodes:</label>
+                    <input type="number" id="nodes" value="1" min="1">
+                </div>
+                <div class="form-group">
+                    <label for="cpus">CPUs per Node:</label>
+                    <input type="number" id="cpus" value="4" min="1">
+                </div>
+                <div class="form-group">
+                    <label for="partition">SLURM Partition:</label>
+                    <select id="partition">
+                        <option value="">Loading partitions...</option>
+                    </select>
+                </div>
+
+                <div class="button-group">
+                    <button onclick="testSlurmConfig()" class="btn-secondary">Test Configuration</button>
+                    <button onclick="submitJob()">Submit Parameter Sweep</button>
+                </div>
+
+                <div id="test-status" class="status-message" style="display: none;"></div>
+                <div id="test-output" class="test-output" style="display: none;"></div>
+                <div id="job-status" class="status-message"></div>
+            </section>
+
+            <!-- HPL Parameter Configuration Section -->
+            <section class="card" id="hpl-params-section" style="display: none;">
+                <h2>3. HPL Parameter Sweep Configuration</h2>
+
+                <div class="param-group">
+                    <h3>N - Problem Size</h3>
+                    <div class="param-row">
+                        <div class="form-group">
+                            <label for="n-start">Start:</label>
+                            <input type="number" id="n-start" value="10000" min="1000" step="1000">
+                        </div>
+                        <div class="form-group">
+                            <label for="n-end">End:</label>
+                            <input type="number" id="n-end" value="50000" min="1000" step="1000">
+                        </div>
+                        <div class="form-group">
+                            <label for="n-step">Step:</label>
+                            <input type="number" id="n-step" value="10000" min="1000" step="1000">
+                        </div>
+                    </div>
+                    <p class="param-hint">Problem size determines memory usage. Larger N = more memory and computation.</p>
+                </div>
+
+                <div class="param-group">
+                    <h3>NB - Block Size</h3>
+                    <div class="form-group">
+                        <label for="nb-values">Select NB Values (Ctrl/Cmd+Click for multiple):</label>
+                        <select id="nb-values" multiple size="7">
+                            <option value="64">64</option>
+                            <option value="96">96</option>
+                            <option value="128" selected>128</option>
+                            <option value="160">160</option>
+                            <option value="192" selected>192</option>
+                            <option value="224">224</option>
+                            <option value="256" selected>256</option>
+                        </select>
+                    </div>
+                    <p class="param-hint">Block size affects cache performance. Common values: 128, 192, 256.</p>
+                </div>
+
+                <div class="param-group">
+                    <h3>P x Q - Process Grid</h3>
+                    <div class="form-group">
+                        <button onclick="loadRecommendedPQ()" class="btn-secondary btn-small">Load Recommended P x Q</button>
+                        <div id="pq-recommendations" style="margin-top: 10px; display: none;"></div>
+                    </div>
+                    <div class="param-row">
+                        <div class="form-group">
+                            <label for="p-values">P Values (comma-separated):</label>
+                            <input type="text" id="p-values" placeholder="e.g., 1,2,4" value="2">
+                        </div>
+                        <div class="form-group">
+                            <label for="q-values">Q Values (comma-separated):</label>
+                            <input type="text" id="q-values" placeholder="e.g., 2,4,8" value="2">
+                        </div>
+                    </div>
+                    <p class="param-hint">P x Q must equal total processes (nodes × CPUs/node). Q ≥ P is recommended.</p>
+                </div>
+
+                <div class="param-summary" id="param-summary" style="display: none;">
+                    <h4>Sweep Summary</h4>
+                    <div id="param-summary-content"></div>
+                </div>
+
+                <div class="button-group">
+                    <button onclick="generateParameterSweep()" class="btn-secondary">Preview Parameter Sweep</button>
+                    <button onclick="submitParameterSweep()">Submit Parameter Sweep</button>
+                </div>
+
+                <div id="param-status" class="status-message" style="display: none;"></div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="card" id="results-section" style="display: none;">
+                <h2>4. Results</h2>
+                <div id="results-content">
+                    <p>No results yet. Submit a job to get started.</p>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>HPL-Sweep v0.1.0 | Running locally at localhost:8000</p>
+        </footer>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
