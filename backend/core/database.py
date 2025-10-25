@@ -51,19 +51,60 @@ def init_database():
         )
     """)
 
+    # Sweeps table - stores parameter sweep sessions
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sweeps (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL,
+            name TEXT,
+            total_jobs INTEGER DEFAULT 0,
+            completed_jobs INTEGER DEFAULT 0,
+            nodes INTEGER,
+            cpus_per_node INTEGER,
+            partition TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (session_id) REFERENCES sessions(id)
+        )
+    """)
+
+    # HPL configurations table - stores HPL parameters for each job
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS hpl_configurations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sweep_id INTEGER NOT NULL,
+            slurm_job_id TEXT,
+            n INTEGER NOT NULL,
+            nb INTEGER NOT NULL,
+            p INTEGER NOT NULL,
+            q INTEGER NOT NULL,
+            pfact TEXT DEFAULT 'R',
+            nbmin INTEGER DEFAULT 4,
+            rfact TEXT DEFAULT 'R',
+            bcast TEXT DEFAULT '1',
+            depth INTEGER DEFAULT 1,
+            swap TEXT DEFAULT '2',
+            l1 INTEGER DEFAULT 0,
+            u INTEGER DEFAULT 0,
+            equil INTEGER DEFAULT 1,
+            align INTEGER DEFAULT 8,
+            status TEXT DEFAULT 'PENDING',
+            submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP,
+            FOREIGN KEY (sweep_id) REFERENCES sweeps(id)
+        )
+    """)
+
     # Results table - stores HPL benchmark results
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS results (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            job_id INTEGER NOT NULL,
-            n INTEGER,
-            nb INTEGER,
-            p INTEGER,
-            q INTEGER,
+            config_id INTEGER NOT NULL,
             gflops REAL,
             time REAL,
+            residual REAL,
             retrieved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (job_id) REFERENCES jobs(id)
+            output_file TEXT,
+            FOREIGN KEY (config_id) REFERENCES hpl_configurations(id)
         )
     """)
 

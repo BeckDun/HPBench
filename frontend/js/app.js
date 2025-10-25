@@ -345,6 +345,9 @@ async function generateParameterSweep() {
 // Submit parameter sweep
 async function submitParameterSweep() {
     const statusDiv = document.getElementById('param-status');
+    const nodes = document.getElementById('nodes').value;
+    const cpus = document.getElementById('cpus').value;
+    const partition = document.getElementById('partition').value;
 
     if (!window.generatedConfigurations || window.generatedConfigurations.length === 0) {
         showStatus(statusDiv, 'Please generate parameter sweep first', 'error');
@@ -352,12 +355,231 @@ async function submitParameterSweep() {
         return;
     }
 
-    showStatus(statusDiv, `Submitting ${window.generatedConfigurations.length} configurations...`, 'info');
+    showStatus(statusDiv, `Submitting ${window.generatedConfigurations.length} jobs to cluster... This may take a few moments.`, 'info');
     statusDiv.style.display = 'block';
 
-    // TODO: Implement actual job submission in next step
-    setTimeout(() => {
-        showStatus(statusDiv, 'Parameter sweep submission will be implemented in the next step!', 'info');
-        document.getElementById('results-section').style.display = 'block';
-    }, 1000);
+    try {
+        const response = await fetch('/api/jobs/sweep/submit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                configurations: window.generatedConfigurations,
+                nodes: parseInt(nodes),
+                cpus_per_node: parseInt(cpus),
+                partition: partition,
+                xhpl_path: 'xhpl',  // Can be made configurable later
+                time_limit: '01:00:00'  // Can be made configurable later
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            let message = `✓ Sweep submitted successfully!\n`;
+            message += `Sweep ID: ${data.sweep_id}\n`;
+            message += `Sweep Name: ${data.sweep_name}\n`;
+            message += `Jobs submitted: ${data.submitted_count}`;
+
+            if (data.failed_count > 0) {
+                message += `\nFailed: ${data.failed_count}`;
+            }
+
+            showStatus(statusDiv, message, 'success');
+
+            // Show results section
+            document.getElementById('results-section').style.display = 'block';
+
+            // Display submitted jobs
+            displaySubmittedJobs(data);
+
+        } else {
+            showStatus(statusDiv, `Error: ${data.detail || 'Sweep submission failed'}`, 'error');
+        }
+    } catch (error) {
+        showStatus(statusDiv, `Submission failed: ${error.message}`, 'error');
+    }
+
+    statusDiv.style.display = 'block';
+}
+
+// Display submitted jobs in results section
+function displaySubmittedJobs(sweepData) {
+    const resultsContent = document.getElementById('results-content');
+
+    // Store current sweep ID for status monitoring
+    window.currentSweepId = sweepData.sweep_id;
+
+    let html = `
+        <h3>Sweep Submitted: ${sweepData.sweep_name}</h3>
+        <p><strong>Sweep ID:</strong> ${sweepData.sweep_id}</p>
+        <p><strong>Jobs Submitted:</strong> ${sweepData.submitted_count}</p>
+        ${sweepData.failed_count > 0 ? `<p class="error"><strong>Failed:</strong> ${sweepData.failed_count}</p>` : ''}
+        <br>
+        <button onclick="viewSweepStatus(${sweepData.sweep_id})" class="btn-secondary">View Job Status</button>
+        <button onclick="startAutoRefresh(${sweepData.sweep_id})" class="btn-secondary">Auto-Refresh Status</button>
+        <button onclick="stopAutoRefresh()" class="btn-secondary">Stop Refresh</button>
+        <br><br>
+        <h4>Submitted Jobs:</h4>
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #f0f0f0;">
+                    <th style="padding: 8px; border: 1px solid #ddd;">Config #</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">SLURM Job ID</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">N</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">NB</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">P</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">Q</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    sweepData.submitted_jobs.forEach(job => {
+        html += `
+            <tr>
+                <td style="padding: 8px; border: 1px solid #ddd;">${job.config_id}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">${job.slurm_job_id}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">${job.config.n}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">${job.config.nb}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">${job.config.p}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">${job.config.q}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+            </tbody>
+        </table>
+        <div id="status-display" style="margin-top: 20px;"></div>
+    `;
+
+    resultsContent.innerHTML = html;
+}
+
+// View sweep status
+async function viewSweepStatus(sweepId) {
+    const statusDisplay = document.getElementById('status-display');
+
+    statusDisplay.innerHTML = '<p>Loading job status...</p>';
+
+    try {
+        const response = await fetch(`/api/jobs/sweep/${sweepId}/status`);
+        const data = await response.json();
+
+        if (response.ok) {
+            displaySweepStatus(data);
+        } else {
+            statusDisplay.innerHTML = `<p class="error">Error: ${data.detail || 'Failed to get status'}</p>`;
+        }
+    } catch (error) {
+        statusDisplay.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+    }
+}
+
+// Display sweep status with job details
+function displaySweepStatus(data) {
+    const statusDisplay = document.getElementById('status-display');
+
+    // Build status summary
+    let html = `
+        <h4>Job Status Summary</h4>
+        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+            <p><strong>Last Updated:</strong> ${new Date().toLocaleString()}</p>
+    `;
+
+    // Display status counts
+    if (data.status_counts) {
+        html += '<p><strong>Status Breakdown:</strong></p><ul>';
+        for (const [status, count] of Object.entries(data.status_counts)) {
+            const color = getStatusColor(status);
+            html += `<li><span style="color: ${color}; font-weight: bold;">${status}:</span> ${count}</li>`;
+        }
+        html += '</ul>';
+    }
+
+    html += '</div>';
+
+    // Job details table
+    html += `
+        <h4>Job Details</h4>
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+            <thead>
+                <tr style="background-color: #f0f0f0;">
+                    <th style="padding: 6px; border: 1px solid #ddd;">Job ID</th>
+                    <th style="padding: 6px; border: 1px solid #ddd;">Status</th>
+                    <th style="padding: 6px; border: 1px solid #ddd;">N</th>
+                    <th style="padding: 6px; border: 1px solid #ddd;">NB</th>
+                    <th style="padding: 6px; border: 1px solid #ddd;">P×Q</th>
+                    <th style="padding: 6px; border: 1px solid #ddd;">Time</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    data.jobs.forEach(job => {
+        const status = job.current_status || job.status;
+        const color = getStatusColor(status);
+        const timeInfo = job.time_used || job.time_left || '-';
+
+        html += `
+            <tr>
+                <td style="padding: 6px; border: 1px solid #ddd;">${job.slurm_job_id}</td>
+                <td style="padding: 6px; border: 1px solid #ddd; color: ${color}; font-weight: bold;">${status}</td>
+                <td style="padding: 6px; border: 1px solid #ddd;">${job.n}</td>
+                <td style="padding: 6px; border: 1px solid #ddd;">${job.nb}</td>
+                <td style="padding: 6px; border: 1px solid #ddd;">${job.p}×${job.q}</td>
+                <td style="padding: 6px; border: 1px solid #ddd;">${timeInfo}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+            </tbody>
+        </table>
+    `;
+
+    statusDisplay.innerHTML = html;
+}
+
+// Get color for job status
+function getStatusColor(status) {
+    const statusColors = {
+        'PENDING': '#FFA500',
+        'RUNNING': '#0066CC',
+        'COMPLETED': '#28A745',
+        'FAILED': '#DC3545',
+        'CANCELLED': '#6C757D',
+        'TIMEOUT': '#DC3545',
+        'NOT_FOUND': '#6C757D',
+        'SUBMITTED': '#17A2B8'
+    };
+    return statusColors[status] || '#333';
+}
+
+// Auto-refresh functionality
+let autoRefreshInterval = null;
+
+function startAutoRefresh(sweepId) {
+    // Stop any existing refresh
+    stopAutoRefresh();
+
+    // Initial update
+    viewSweepStatus(sweepId);
+
+    // Set up interval (refresh every 10 seconds)
+    autoRefreshInterval = setInterval(() => {
+        viewSweepStatus(sweepId);
+    }, 10000);
+
+    console.log('Auto-refresh started for sweep', sweepId);
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+        console.log('Auto-refresh stopped');
+    }
 }
