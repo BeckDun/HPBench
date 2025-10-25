@@ -191,7 +191,11 @@ def generate_slurm_script(
     """
     total_processes = nodes * cpus_per_node
     job_name = f"hpl_sweep_{sweep_id}_{config_id}"
-    output_file = f"hpl_output_{sweep_id}_{config_id}.out"
+
+    # Create organized output directory structure
+    results_dir = f"$HOME/hpl_results/sweep_{sweep_id}"
+    output_file = f"{results_dir}/config_{config_id}.out"
+    error_file = f"{results_dir}/config_{config_id}.err"
 
     script = f"""#!/bin/bash
 #SBATCH --job-name={job_name}
@@ -200,10 +204,14 @@ def generate_slurm_script(
 #SBATCH --partition={partition}
 #SBATCH --time={time_limit}
 #SBATCH --output={output_file}
+#SBATCH --error={error_file}
 
 # HPL Parameter Sweep Job
 # Sweep ID: {sweep_id}, Config ID: {config_id}
 # N={config.n}, NB={config.nb}, P={config.p}, Q={config.q}
+
+# Create results directory if it doesn't exist
+mkdir -p {results_dir}
 
 echo "=== HPL Benchmark Job ==="
 echo "Job ID: $SLURM_JOB_ID"
@@ -213,6 +221,7 @@ echo "Nodes: {nodes}"
 echo "Tasks per node: {cpus_per_node}"
 echo "Total MPI processes: {total_processes}"
 echo "Partition: {partition}"
+echo "Results directory: {results_dir}"
 echo ""
 echo "HPL Configuration:"
 echo "  N  = {config.n}"
@@ -224,10 +233,14 @@ echo ""
 # Run HPL benchmark
 echo "Starting HPL benchmark..."
 mpirun -np {total_processes} {xhpl_path}
+HPL_EXIT_CODE=$?
 
 echo ""
 echo "=== HPL Job Complete ==="
 echo "Completed at: $(date)"
+echo "HPL exit code: $HPL_EXIT_CODE"
+
+exit $HPL_EXIT_CODE
 """
     return script
 

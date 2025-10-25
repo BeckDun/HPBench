@@ -120,6 +120,21 @@
                     <p class="param-hint">P x Q must equal total processes (nodes × CPUs/node). Q ≥ P is recommended.</p>
                 </div>
 
+                <div class="param-group">
+                    <h3>HPL Binary Path</h3>
+                    <div class="form-group">
+                        <label for="xhpl-path">Path to xhpl binary:</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="text" id="xhpl-path" placeholder="e.g., /path/to/xhpl or just 'xhpl'" value="xhpl" style="flex: 1;">
+                            <button onclick="openFileBrowser()" class="btn-secondary btn-small">Browse...</button>
+                            <button onclick="findHPLBinaries()" class="btn-secondary btn-small">Auto-Find</button>
+                            <button onclick="verifyHPLPath()" class="btn-secondary btn-small">Verify</button>
+                        </div>
+                        <div id="xhpl-verify-status" style="margin-top: 5px;"></div>
+                    </div>
+                    <p class="param-hint">Path to HPL executable on the cluster. Use 'xhpl' if it's in $PATH.</p>
+                </div>
+
                 <div class="param-summary" id="param-summary" style="display: none;">
                     <h4>Sweep Summary</h4>
                     <div id="param-summary-content"></div>
@@ -147,6 +162,34 @@
         </footer>
     </div>
 
+    <!-- File Browser Modal -->
+    <div id="file-browser-modal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3>Browse Cluster Filesystem</h3>
+                <span class="close" onclick="closeFileBrowser()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 15px;">
+                    <strong>Current Path:</strong> <span id="current-path">~</span>
+                    <button onclick="navigateToParent()" class="btn-secondary btn-small" style="margin-left: 10px;">Up</button>
+                    <button onclick="navigateToHome()" class="btn-secondary btn-small">Home</button>
+                </div>
+                <div id="file-list" style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background-color: #f9f9f9;">
+                    <p>Loading...</p>
+                </div>
+                <div style="margin-top: 15px;">
+                    <strong>Selected:</strong> <span id="selected-file">None</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="selectFile()" class="btn-primary">Select</button>
+                <button onclick="closeFileBrowser()" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/js/app.js"></script>
+    <script src="/static/js/file_browser.js"></script>
 </body>
 </html>

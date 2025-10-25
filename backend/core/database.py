@@ -101,9 +101,12 @@ def init_database():
             config_id INTEGER NOT NULL,
             gflops REAL,
             time REAL,
-            residual REAL,
+            residual TEXT,
+            passed BOOLEAN DEFAULT 0,
+            error_message TEXT,
+            job_info TEXT,
+            error_content TEXT,
             retrieved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            output_file TEXT,
             FOREIGN KEY (config_id) REFERENCES hpl_configurations(id)
         )
     """)

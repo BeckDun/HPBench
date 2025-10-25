@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 import os
 
 # Import API routers
-from backend.api import auth, cluster, jobs
+from backend.api import auth, cluster, jobs, files
 
 # Create FastAPI app
 app = FastAPI(title="HPL-Sweep", description="HPL Parameter Sweep Application", version="0.1.0")
@@ -18,6 +18,7 @@ app = FastAPI(title="HPL-Sweep", description="HPL Parameter Sweep Application", 
 app.include_router(auth.router)
 app.include_router(cluster.router)
 app.include_router(jobs.router)
+app.include_router(files.router)
 
 # Mount frontend static files
 app.mount("/static", StaticFiles(directory="frontend"), name="static")

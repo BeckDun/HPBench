@@ -348,6 +348,7 @@ async function submitParameterSweep() {
     const nodes = document.getElementById('nodes').value;
     const cpus = document.getElementById('cpus').value;
     const partition = document.getElementById('partition').value;
+    const xhplPath = document.getElementById('xhpl-path').value || 'xhpl';
 
     if (!window.generatedConfigurations || window.generatedConfigurations.length === 0) {
         showStatus(statusDiv, 'Please generate parameter sweep first', 'error');
@@ -369,7 +370,7 @@ async function submitParameterSweep() {
                 nodes: parseInt(nodes),
                 cpus_per_node: parseInt(cpus),
                 partition: partition,
-                xhpl_path: 'xhpl',  // Can be made configurable later
+                xhpl_path: xhplPath,
                 time_limit: '01:00:00'  // Can be made configurable later
             })
         });
@@ -418,6 +419,7 @@ function displaySubmittedJobs(sweepData) {
         ${sweepData.failed_count > 0 ? `<p class="error"><strong>Failed:</strong> ${sweepData.failed_count}</p>` : ''}
         <br>
         <button onclick="viewSweepStatus(${sweepData.sweep_id})" class="btn-secondary">View Job Status</button>
+        <button onclick="viewSweepResults(${sweepData.sweep_id})" class="btn-secondary">View Results</button>
         <button onclick="startAutoRefresh(${sweepData.sweep_id})" class="btn-secondary">Auto-Refresh Status</button>
         <button onclick="stopAutoRefresh()" class="btn-secondary">Stop Refresh</button>
         <br><br>
@@ -582,4 +584,173 @@ function stopAutoRefresh() {
         autoRefreshInterval = null;
         console.log('Auto-refresh stopped');
     }
+}
+
+// Collect results from cluster
+async function collectResults(sweepId) {
+    const statusDisplay = document.getElementById('status-display');
+
+    // Add collecting message
+    const collectingMsg = document.createElement('p');
+    collectingMsg.className = 'info';
+    collectingMsg.textContent = 'Collecting results from cluster...';
+    statusDisplay.insertBefore(collectingMsg, statusDisplay.firstChild);
+
+    try {
+        const response = await fetch(`/api/jobs/sweep/${sweepId}/collect-results`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+
+        collectingMsg.remove();
+
+        if (response.ok) {
+            // Show success message
+            const successMsg = document.createElement('div');
+            successMsg.className = 'success';
+            successMsg.style.padding = '10px';
+            successMsg.style.marginBottom = '15px';
+            successMsg.innerHTML = `
+                <strong>Results Collected!</strong><br>
+                Collected: ${data.collected_count}/${data.total_configs}<br>
+                Failed: ${data.failed_count}
+            `;
+            statusDisplay.insertBefore(successMsg, statusDisplay.firstChild);
+
+            // Refresh to show results
+            setTimeout(() => {
+                viewSweepResults(sweepId);
+            }, 1000);
+        } else {
+            const errorMsg = document.createElement('p');
+            errorMsg.className = 'error';
+            errorMsg.textContent = `Error collecting results: ${data.detail || 'Unknown error'}`;
+            statusDisplay.insertBefore(errorMsg, statusDisplay.firstChild);
+        }
+    } catch (error) {
+        collectingMsg.remove();
+        const errorMsg = document.createElement('p');
+        errorMsg.className = 'error';
+        errorMsg.textContent = `Error: ${error.message}`;
+        statusDisplay.insertBefore(errorMsg, statusDisplay.firstChild);
+    }
+}
+
+// View sweep results
+async function viewSweepResults(sweepId) {
+    const statusDisplay = document.getElementById('status-display');
+
+    statusDisplay.innerHTML = '<p>Loading results...</p>';
+
+    try {
+        const response = await fetch(`/api/jobs/sweep/${sweepId}/results`);
+        const data = await response.json();
+
+        if (response.ok) {
+            displaySweepResults(data);
+        } else {
+            statusDisplay.innerHTML = `<p class="error">Error: ${data.detail || 'Failed to get results'}</p>`;
+        }
+    } catch (error) {
+        statusDisplay.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+    }
+}
+
+// Display sweep results with performance data
+function displaySweepResults(data) {
+    const statusDisplay = document.getElementById('status-display');
+
+    let html = `
+        <div style="margin-bottom: 20px;">
+            <button onclick="viewSweepStatus(${data.sweep.id})" class="btn-secondary" style="margin-right: 10px;">View Job Status</button>
+            <button onclick="collectResults(${data.sweep.id})" class="btn-secondary">Collect Results</button>
+        </div>
+    `;
+
+    // Performance Summary
+    if (data.statistics.best_gflops !== null) {
+        html += `
+            <div style="background-color: #e8f5e9; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #28A745;">
+                <h4 style="margin-top: 0;">Performance Summary</h4>
+                <p><strong>Best Performance:</strong> ${data.statistics.best_gflops.toFixed(2)} GFLOPS</p>
+                <p><strong>Best Configuration:</strong>
+                    N=${data.statistics.best_config.n},
+                    NB=${data.statistics.best_config.nb},
+                    P=${data.statistics.best_config.p},
+                    Q=${data.statistics.best_config.q}
+                </p>
+                <p><strong>Results Collected:</strong> ${data.statistics.completed_with_results} / ${data.statistics.total_configs}</p>
+            </div>
+        `;
+    } else {
+        html += `
+            <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #FFA500;">
+                <p><strong>No results collected yet.</strong></p>
+                <p>Jobs completed: Check job status above and click "Collect Results" when jobs are complete.</p>
+            </div>
+        `;
+    }
+
+    // Results Table
+    html += `
+        <h4>All Results</h4>
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+            <thead>
+                <tr style="background-color: #f0f0f0;">
+                    <th style="padding: 8px; border: 1px solid #ddd;">Config</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">N</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">NB</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">P×Q</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">GFLOPS</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">Time (s)</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    // Sort by GFLOPS descending (nulls last)
+    const sortedResults = [...data.results].sort((a, b) => {
+        if (a.gflops === null) return 1;
+        if (b.gflops === null) return -1;
+        return b.gflops - a.gflops;
+    });
+
+    sortedResults.forEach((result, index) => {
+        const hasBest = data.statistics.best_gflops !== null &&
+                        result.gflops === data.statistics.best_gflops;
+        const rowStyle = hasBest ? 'background-color: #e8f5e9; font-weight: bold;' : '';
+
+        const gflopsDisplay = result.gflops !== null ?
+            result.gflops.toFixed(2) :
+            '<span style="color: #999;">-</span>';
+
+        const timeDisplay = result.time !== null ?
+            result.time.toFixed(2) :
+            '<span style="color: #999;">-</span>';
+
+        const statusIcon = result.passed ?
+            '<span style="color: #28A745;">✓ PASSED</span>' :
+            (result.has_result ? '<span style="color: #DC3545;">✗ FAILED</span>' :
+            '<span style="color: #999;">Pending</span>');
+
+        html += `
+            <tr style="${rowStyle}">
+                <td style="padding: 8px; border: 1px solid #ddd;">${result.config_id}${hasBest ? ' 🏆' : ''}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">${result.n}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">${result.nb}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">${result.p}×${result.q}</td>
+                <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${gflopsDisplay}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">${timeDisplay}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">${statusIcon}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+            </tbody>
+        </table>
+    `;
+
+    statusDisplay.innerHTML = html;
 }
