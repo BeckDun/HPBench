@@ -67,15 +67,20 @@ async def generate_parameters(request: ParameterSweepRequest):
     """
     Generate HPL parameter sweep combinations based on range
     """
-    configurations = generate_parameter_sweep(
-        param_range=request.parameter_range,
-        max_combinations=request.max_combinations or 100
-    )
+    try:
+        configurations = generate_parameter_sweep(
+            param_range=request.parameter_range,
+            max_combinations=request.max_combinations or 100
+        )
 
-    return {
-        "total_configurations": len(configurations),
-        "configurations": configurations
-    }
+        return {
+            "total_configurations": len(configurations),
+            "configurations": configurations
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid parameter range: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating parameters: {str(e)}")
 
 @router.get("/parameters/recommended-nb")
 async def get_nb_recommendations():

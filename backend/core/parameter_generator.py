@@ -19,8 +19,11 @@ def generate_parameter_sweep(param_range: HPLParameterRange, max_combinations: i
     """
     configurations = []
 
+    # Validate and fix n_step if it's zero or invalid
+    n_step = param_range.n_step if param_range.n_step and param_range.n_step > 0 else 1
+
     # Generate N values
-    n_values = list(range(param_range.n_start, param_range.n_end + 1, param_range.n_step))
+    n_values = list(range(param_range.n_start, param_range.n_end + 1, n_step))
 
     # Get NB values
     nb_values = param_range.nb_values
