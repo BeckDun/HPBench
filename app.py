@@ -10,9 +10,15 @@ import os
 
 # Import API routers
 from backend.api import auth, cluster, jobs, files
+from backend.core.database import init_database
 
 # Create FastAPI app
 app = FastAPI(title="HPL-Sweep", description="HPL Parameter Sweep Application", version="0.1.0")
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize the database on startup"""
+    init_database()
 
 # Include API routers
 app.include_router(auth.router)

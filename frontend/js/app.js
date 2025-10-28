@@ -39,6 +39,7 @@ async function connectSSH() {
         if (response.ok) {
             showStatus(statusDiv, 'Connected successfully!', 'success');
             document.getElementById('job-section').style.display = 'block';
+            document.getElementById('hpl-params-section').style.display = 'block';
 
             // Load available partitions
             await loadPartitions();
@@ -147,8 +148,8 @@ async function testSlurmConfig() {
             if (data.test_passed) {
                 showStatus(testStatusDiv, `✓ Test PASSED! Job ID: ${data.job_id}`, 'success');
 
-                // Show HPL parameters section after successful test
-                document.getElementById('hpl-params-section').style.display = 'block';
+                // HPL parameters section is now always visible (no longer conditional on test)
+                // document.getElementById('hpl-params-section').style.display = 'block';
             } else {
                 showStatus(testStatusDiv, `✗ Test FAILED! Job ID: ${data.job_id}`, 'error');
             }
@@ -178,8 +179,11 @@ async function testSlurmConfig() {
     testStatusDiv.style.display = 'block';
 }
 
-// Submit job
-async function submitJob() {
+// Setup parameter sweep (show HPL parameter configuration)
+// NOTE: This function does NOT submit or validate the job configuration
+// It only displays the HPL parameter section. Actual validation and submission
+// happens later when the user clicks "Submit Parameter Sweep"
+function submitJob() {
     const nodes = document.getElementById('nodes').value;
     const cpus = document.getElementById('cpus').value;
     const partition = document.getElementById('partition').value;
@@ -190,28 +194,12 @@ async function submitJob() {
         return;
     }
 
-    showStatus(statusDiv, 'Submitting job...', 'info');
+    // Show the HPL parameter configuration section (no API call - frontend only)
+    showStatus(statusDiv, 'Configuration saved. Proceed to parameter sweep setup below.', 'success');
+    document.getElementById('hpl-params-section').style.display = 'block';
 
-    try {
-        const response = await fetch('/api/jobs/submit', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ nodes, cpus, partition })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            showStatus(statusDiv, `Job submitted successfully! Job ID: ${data.job_id}`, 'success');
-            document.getElementById('results-section').style.display = 'block';
-        } else {
-            showStatus(statusDiv, `Error: ${data.detail || 'Job submission failed'}`, 'error');
-        }
-    } catch (error) {
-        showStatus(statusDiv, `Job submission failed: ${error.message}`, 'error');
-    }
+    // Scroll to the parameter section
+    document.getElementById('hpl-params-section').scrollIntoView({ behavior: 'smooth' });
 }
 
 // Helper function to show status messages

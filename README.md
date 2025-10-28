@@ -49,6 +49,13 @@ Open your browser to http://localhost:8000
 - [ ] Best configuration recommendations
 - [ ] Multi-cluster support
 
+### Planned Improvements
+- [ ] Add node/resource validation before parameter sweep setup
+  - Display available resources per partition (nodes, CPUs, memory)
+  - Validate user input against partition limits
+  - Show helpful error messages when requested resources exceed limits
+  - Prevent invalid configurations from proceeding to parameter sweep
+
 ## Prerequisites
 
 - Python 3.8 or higher
